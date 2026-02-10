@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flux 1.1 Pro | SuperAI Interface</title>
+    
+    <!-- Puter.js (Loaded in Head) -->
+    <script src="https://js.puter.com/v2/"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0b0f19', // Main BG
+                            800: '#151b2b', // Panel BG
+                            700: '#2d3748', // Inputs
+                        },
+                        accent: {
+                            DEFAULT: '#8b5cf6', // Violet
+                            hover: '#7c3aed'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        
+        /* Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        .pulse-ring::before {
+            content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+            border-radius: 50%; border: 2px solid #8b5cf6; animation: pulse-ring 2s infinite;
+        }
+
+        .scanning-line {
+            width: 100%; height: 2px; background: #8b5cf6;
+            position: absolute; top: 0; left: 0;
+            animation: scan 2s linear infinite;
+            display: none;
+        }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-200 h-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- TOP HEADER -->
+    <header class="h-14 bg-dark-800 border-b border-gray-800 flex items-center justify-between px-4 z-50">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded bg-gradient-to-tr from-purple-600 to-blue-600 flex items-center justify-center">
+                <i class="fa-solid fa-brain text-white"></i>
+            </div>
+            <h1 class="font-bold text-lg tracking-tight text-white">SuperAI <span class="text-xs text-purple-400 font-normal">Flux 1.1 Pro</span></h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="systemStatus" class="flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-red-900/30 text-red-400 border border-red-900/50">
+                <i class="fa-solid fa-circle text-[8px]"></i> System Offline
+            </div>
+            <button onclick="checkPuterConnection()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs transition">
+                <i class="fa-solid fa-plug"></i> Reconnect
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- LEFT SIDEBAR (Controls) -->
+        <aside class="w-80 bg-dark-800 border-r border-gray-800 flex flex-col overflow-y-auto z-40 shadow-xl">
+            
+            <div class="p-5 space-y-6">
+                <!-- Reference Image Section -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Reference Image</label>
+                    <div class="relative w-full group">
+                        <!-- Dropzone -->
+                        <div id="dropZone" class="border-2 border-dashed border-gray-700 hover:border-accent-DEFAULT bg-dark-900/50 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer transition relative overflow-hidden">
+                            <input type="file" id="refImageInput" class="absolute inset-0 opacity-0 cursor-pointer z-20" accept="image/*">
+                            
+                            <!-- Placeholder Content -->
+                            <div id="dropContent" class="text-center pointer-events-none">
+                                <i class="fa-solid fa-image text-2xl text-gray-500 mb-2 group-hover:text-accent-DEFAULT transition"></i>
+                                <p class="text-xs text-gray-500">Upload Source Image</p>
+                            </div>
+
+                            <!-- Preview (Hidden by default) -->
+                            <div id="previewContainer" class="absolute inset-0 bg-black hidden z-10">
+                                <img id="refPreviewImg" class="w-full h-full object-cover opacity-50">
+                                <div class="absolute bottom-0 w-full bg-black/80 text-[10px] text-center py-1 text-green-400">
+                                    <i class="fa-solid fa-check"></i> Uploaded to Cloud
+                                </div>
+                            </div>
+                            
+                            <!-- Loading Spinner (Hidden) -->
+                            <div id="uploadLoader" class="absolute inset-0 bg-dark-900/90 hidden items-center justify-center z-30">
+                                <i class="fa-solid fa-circle-notch fa-spin text-accent-DEFAULT text-xl"></i>
+                                <span class="text-xs text-white ml-2">Uploading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Aspect Ratio</label>
+                        <div class="grid grid-cols-3 gap-2 mt-2">
+                            <button class="ratio-btn bg-accent-DEFAULT text-white py-2 rounded text-xs border border-transparent" data-ratio="1:1" onclick="selectRatio('1:1')">Square</button>
+                            <button class="ratio-btn bg-dark-700 text-gray-400 py-2 rounded text-xs border border-transparent hover:bg-dark-600" data-ratio="9:16" onclick="selectRatio('9:16')">Portrait</button>
+                            <button class="ratio-btn bg-dark-700 text-gray-400 py-2 rounded text-xs border border-transparent hover:bg-dark-600" data-ratio="16:9" onclick="selectRatio('16:9')">Landscape</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Style Preset</label>
+                        <select id="styleInput" class="w-full mt-2 bg-dark-900 border border-gray-700 rounded p-2 text-xs text-white focus:border-accent-DEFAULT outline-none">
+                            <option value="">None (Flux Native)</option>
+                            <option value="Hyper-realistic, 8k, highly detailed, dramatic lighting, photography">Photorealistic</option>
+                            <option value="Anime style, Studio Ghibli, vibrant colors, cel shaded">Anime</option>
+                            <option value="Cyberpunk, neon lights, futuristic city, sci-fi, detailed">Cyberpunk</option>
+                            <option value="Oil painting, heavy strokes, classical art style">Oil Painting</option>
+                            <option value="3D Render, Unreal Engine 5, Raytracing, Octane Render">3D Render</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Negative Prompt</label>
+                        <textarea id="negPrompt" rows="2" class="w-full mt-2 bg-dark-900 border border-gray-700 rounded p-2 text-xs text-white focus:border-accent-DEFAULT outline-none placeholder-gray-600" placeholder="bad quality, blurry, ugly..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logger Console -->
+            <div class="mt-auto border-t border-gray-800 bg-black p-3 font-mono text-[10px] h-32 overflow-y-auto" id="consoleLog">
+                <div class="text-gray-500">System Log initialized...</div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col relative bg-dark-900">
+            
+            <!-- Gallery Feed -->
+            <div id="gallery" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth">
+                <div id="emptyState" class="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
+                    <i class="fa-solid fa-wand-magic-sparkles text-6xl mb-4"></i>
+                    <p class="text-lg">Create something amazing.</p>
+                </div>
+            </div>
+
+            <!-- Bottom Prompt Bar -->
+            <div class="p-6 bg-dark-800 border-t border-gray-800 relative z-30">
+                
+                <!-- Generation Progress Overlay -->
+                <div id="genProgress" class="absolute -top-10 left-0 w-full flex justify-center hidden">
+                    <div class="bg-accent-DEFAULT text-white text-xs px-4 py-1 rounded-t-lg shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        <span>Generating... <span id="timer">0.0s</span></span>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 max-w-5xl mx-auto">
+                    <div class="flex-1 relative">
+                        <textarea id="promptInput" class="w-full bg-dark-900 border border-gray-600 rounded-xl p-4 pr-12 text-white placeholder-gray-500 focus:border-accent-DEFAULT focus:ring-1 focus:ring-accent-DEFAULT outline-none resize-none h-14 shadow-inner text-sm" placeholder="Describe your imagination..."></textarea>
+                        <button onclick="clearHistory()" class="absolute right-3 top-3 text-gray-500 hover:text-red-400" title="Clear History">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <button id="generateBtn" onclick="generate()" class="bg-accent-DEFAULT hover:bg-accent-hover text-white px-8 rounded-xl font-bold transition shadow-lg shadow-purple-900/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed h-14">
+                        Generate
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONFIGURATION ---
+        const CLOUD_NAME = "dgpixx6j7";
+        const UPLOAD_PRESET = "SuperAi interface"; // Must match exactly
+        const MODEL_ID = "black-forest-labs/FLUX.1.1-pro";
+
+        // --- STATE VARIABLES ---
+        let currentRefImageUrl = null;
+        let selectedRatio = "1:1";
+        let isProcessing = false;
+        let timerInterval;
+
+        // --- SYSTEM LOGGER ---
+        function log(msg, type = 'info') {
+            const consoleEl = document.getElementById('consoleLog');
+            const div = document.createElement('div');
+            
+            let color = 'text-gray-300';
+            if (type === 'error') color = 'text-red-400';
+            if (type === 'success') color = 'text-green-400';
+            if (type === 'warn') color = 'text-yellow-400';
+
+            div.className = `mb-1 ${color}`;
+            div.innerText = `> ${msg}`;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+            console.log(`[SuperAI] ${msg}`);
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            log("Interface loaded.");
+            loadHistory();
+            
+            // Check Puter after a slight delay to ensure script ran
+            setTimeout(checkPuterConnection, 1000);
+
+            // Init Upload Listener
+            document.getElementById('refImageInput').addEventListener('change', handleFileUpload);
+        };
+
+        async function checkPuterConnection() {
+            const statusBadge = document.getElementById('systemStatus');
+            try {
+                if (typeof puter !== 'undefined') {
+                    // Try a lightweight auth check or just assume loaded
+                    statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px]"></i> System Online`;
+                    statusBadge.className = "flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-green-900/30 text-green-400 border border-green-900/50";
+                    log("Puter.js library detected.", "success");
+                } else {
+                    throw new Error("Puter object missing");
+                }
+            } catch (e) {
+                statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px]"></i> Library Error`;
+                statusBadge.className = "flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-red-900/30 text-red-400 border border-red-900/50";
+                log("Puter.js not loaded. Check adblockers.", "error");
+            }
+        }
+
+        // --- RATIO HANDLING ---
+        function selectRatio(ratio) {
+            selectedRatio = ratio;
+            document.querySelectorAll('.ratio-btn').forEach(btn => {
+                if (btn.dataset.ratio === ratio) {
+                    btn.classList.remove('bg-dark-700', 'text-gray-400');
+                    btn.classList.add('bg-accent-DEFAULT', 'text-white');
+                } else {
+                    btn.classList.add('bg-dark-700', 'text-gray-400');
+                    btn.classList.remove('bg-accent-DEFAULT', 'text-white');
+                }
+            });
+            log(`Ratio changed to ${ratio}`);
+        }
+
+        // --- CLOUDINARY UPLOAD (Reference) ---
+        async function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // UI Feedback
+            const loader = document.getElementById('uploadLoader');
+            const previewContainer = document.getElementById('previewContainer');
+            const previewImg = document.getElementById('refPreviewImg');
+            
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            log("Uploading reference image...");
+
+            // Create Local Preview immediately
+            const objectUrl = URL.createObjectURL(file);
+            previewImg.src = objectUrl;
+            previewContainer.classList.remove('hidden');
+
+            // Upload to Cloudinary
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', UPLOAD_PRESET);
+            formData.append('tags', 'reference_image');
+
+            try {
+                const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Cloudinary Rejected Upload");
+
+                const data = await response.json();
+                currentRefImageUrl = data.secure_url;
+                log("Reference Image uploaded successfully.", "success");
+                
+            } catch (error) {
+                log(`Upload Error: ${error.message}`, "error");
+                previewContainer.classList.add('hidden');
+                alert("Image Upload Failed. Please check console.");
+            } finally {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+            }
+        }
+
+        // --- GENERATION MAIN LOOP ---
+        async function generate() {
+            const promptText = document.getElementById('promptInput').value.trim();
+            const style = document.getElementById('styleInput').value;
+            const neg = document.getElementById('negPrompt').value;
+            
+            if (!promptText) {
+                alert("Please enter a prompt.");
+                return;
+            }
+
+            if (isProcessing) return;
+            isProcessing
